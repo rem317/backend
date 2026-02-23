@@ -7,11 +7,11 @@ const pool = mysql.createPool({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     port: process.env.DB_PORT || 4000,
-  // I-add itong ssl section
-  ssl: {
-    rejectUnauthorized: true,
-    minVersion: 'TLSv1.2'
-  }
+    // I-add itong ssl section
+    ssl: {
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.2'
+    }, // <--- ITO ANG KULANG! Comma pagkatapos ng SSL section
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
