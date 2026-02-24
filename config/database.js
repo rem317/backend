@@ -15,8 +15,13 @@ const connection = connect({
 // Execute function para magamit sa server.js
 async function execute(query, params = []) {
     try {
+        console.log(`🔍 Executing query: ${query.substring(0, 100)}...`);
         const result = await connection.execute(query, params);
-        return result;
+        // ✅ SIGURADUHIN NA MAY RESULT.ROWS
+        return {
+            rows: result.rows || [],
+            fields: result.fields || []
+        };
     } catch (err) {
         console.error('❌ Query error:', err.message);
         throw err;
