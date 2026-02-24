@@ -124,6 +124,7 @@ const db = require('./config/database');
 const promisePool = {
     execute: async (query, params) => {
         try {
+            console.log(`🔍 Executing query: ${query.substring(0, 100)}...`);
             const result = await db.execute(query, params);
             // ✅ LAGING MAGBALIK NG ARRAY, KAHIT WALANG LAMAN
             return [result.rows || [], result.fields || []];
@@ -134,6 +135,7 @@ const promisePool = {
     },
     query: async (query, params) => {
         try {
+            console.log(`🔍 Executing query: ${query.substring(0, 100)}...`);
             const result = await db.execute(query, params);
             return [result.rows || [], result.fields || []];
         } catch (error) {
@@ -840,55 +842,71 @@ app.post('/api/auth/register', async (req, res) => {
             });
         }
         
-        const [users] = await promisePool.execute('SELECT COUNT(*) as count FROM users');
-        const userCount = users[0].count;
-        
-        let finalRole = 'student';
-        
-        if (userCount === 0) {
-            finalRole = 'admin';
-            console.log('👑 First user registration - assigning admin role');
-        } else {
-            const teacher_secret = process.env.TEACHER_SECRET || 'TEACHER123';
-            const admin_secret = process.env.ADMIN_SECRET || 'ADMIN123';
-            
-            if (role === 'teacher') {
-                if (!role_secret) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Access code is required for teacher registration'
-                    });
-                }
-                
-                if (role_secret.toUpperCase() !== teacher_secret.toUpperCase()) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Invalid teacher registration code'
-                    });
-                }
-                
-                finalRole = 'teacher';
-                
-            } else if (role === 'admin') {
-                if (!role_secret) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Access code is required for administrator registration'
-                    });
-                }
-                
-                if (role_secret.toUpperCase() !== admin_secret.toUpperCase()) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Invalid admin registration code'
-                    });
-                }
-                
-                finalRole = 'admin';
-            } else {
-                finalRole = 'student';
-            }
+        // Get user count to determine if this is the first user
+let userCount = 0;
+try {
+    console.log('📊 Checking user count...');
+    const [countResult] = await promisePool.execute('SELECT COUNT(*) as count FROM users');
+    
+    // ✅ SAFE CHECK: Ensure countResult exists and has at least one element
+    if (countResult && countResult.length > 0 && countResult[0] && countResult[0].count !== undefined) {
+        userCount = countResult[0].count;
+        console.log(`📊 User count: ${userCount}`);
+    } else {
+        console.log('⚠️ No count result, assuming 0 users');
+        userCount = 0;
+    }
+} catch (countError) {
+    console.error('❌ Error getting user count:', countError.message);
+    userCount = 0; // Default to 0 if query fails
+}
+
+let finalRole = 'student';
+
+if (userCount === 0) {
+    finalRole = 'admin';
+    console.log('👑 First user registration - assigning admin role');
+} else {
+    const teacher_secret = process.env.TEACHER_SECRET || 'TEACHER123';
+    const admin_secret = process.env.ADMIN_SECRET || 'ADMIN123';
+    
+    if (role === 'teacher') {
+        if (!role_secret) {
+            return res.status(400).json({
+                success: false,
+                message: 'Access code is required for teacher registration'
+            });
         }
+        
+        if (role_secret.toUpperCase() !== teacher_secret.toUpperCase()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid teacher registration code'
+            });
+        }
+        
+        finalRole = 'teacher';
+        
+    } else if (role === 'admin') {
+        if (!role_secret) {
+            return res.status(400).json({
+                success: false,
+                message: 'Access code is required for administrator registration'
+            });
+        }
+        
+        if (role_secret.toUpperCase() !== admin_secret.toUpperCase()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid admin registration code'
+            });
+        }
+        
+        finalRole = 'admin';
+    } else {
+        finalRole = 'student';
+    }
+}
         
         console.log('✅ Final role determined:', finalRole);
         
