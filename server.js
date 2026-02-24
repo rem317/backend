@@ -17,9 +17,18 @@ const app = express();
 // ============================================
 // MIDDLEWARE
 // ============================================
-// PAYAGAN LAHAT NG ORIGIN (for development only)
+// ============================================
+// CORS CONFIGURATION
+// ============================================
+const allowedOrigins = [
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'https://your-frontend.onrender.com', // Palitan pag na-deploy
+    process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: '*',
+    origin: allowedOrigins,
     credentials: true
 }));
 app.use(express.json());
@@ -89,146 +98,28 @@ const upload = multer({
 
 
 // ============================================
-// DATABASE CONNECTION - FIXED
-// ============================================
-//const pool = mysql.createPool({
-   // host: process.env.DB_HOST || 'localhost',
-   // user: process.env.DB_USER || 'root',
-    //password: process.env.DB_PASSWORD || 'thesis',
-    //database: process.env.DB_NAME || 'polylearn_db',
-   // waitForConnections: true,
-   // connectionLimit: 10,
-    //queueLimit: 0,
-    //enableKeepAlive: true,
-    //keepAliveInitialDelay: 0
-//});
-
-//const promisePool = pool.promise();
-
-// Test connection
-//pool.getConnection((err, connection) => {
-   // if (err) {
-      //  console.error('❌ Database connection failed:', err.message);
-    //} else {
-       // console.log('✅ Connected to MySQL database');
-        //connection.release();
-   // }
-//});
-
-// ============================================
-// DATABASE CONNECTION - USING TiDB SERVERLESS
+// DATABASE CONNECTION - USING MYSQL
 // ============================================
 const db = require('./config/database');
 
-// Create a wrapper para hindi ma-undefined ang promisePool
-const promisePool = {
-    execute: async (query, params) => {
-        try {
-            console.log(`🔍 Executing query: ${query.substring(0, 100)}...`);
-            const result = await db.execute(query, params);
-            
-            // ✅ CHECK KUNG ANONG TYPE NG QUERY
-            const queryType = query.trim().split(' ')[0].toUpperCase();
-            
-            if (queryType === 'SELECT') {
-                // Para sa SELECT queries, return rows at fields
-                return [result.rows || [], result.fields || []];
-            } else {
-                // Para sa INSERT, UPDATE, DELETE, return ang buong result object
-                // para magamit ang insertId, affectedRows, etc.
-                return {
-                    insertId: result.lastInsertId || result.insertId || null,
-                    affectedRows: result.affectedRows || 0,
-                    rows: result.rows || [],
-                    fields: result.fields || []
-                };
-            }
-        } catch (error) {
-            console.error('❌ Query execution error:', error);
-            throw error;
-        }
-    },
-    
-    query: async (query, params) => {
-        // Same logic sa execute
-        try {
-            console.log(`🔍 Executing query: ${query.substring(0, 100)}...`);
-            const result = await db.execute(query, params);
-            
-            const queryType = query.trim().split(' ')[0].toUpperCase();
-            
-            if (queryType === 'SELECT') {
-                return [result.rows || [], result.fields || []];
-            } else {
-                return {
-                    insertId: result.lastInsertId || result.insertId || null,
-                    affectedRows: result.affectedRows || 0,
-                    rows: result.rows || [],
-                    fields: result.fields || []
-                };
-            }
-        } catch (error) {
-            console.error('❌ Query execution error:', error);
-            throw error;
-        }
-    },
-    
-    getConnection: async () => {
-        // Return a mock connection
-        return {
-            query: async (query, params) => {
-                const result = await db.execute(query, params);
-                const queryType = query.trim().split(' ')[0].toUpperCase();
-                
-                if (queryType === 'SELECT') {
-                    return [result.rows || [], result.fields || []];
-                } else {
-                    return {
-                        insertId: result.lastInsertId || result.insertId || null,
-                        affectedRows: result.affectedRows || 0,
-                        rows: result.rows || [],
-                        fields: result.fields || []
-                    };
-                }
-            },
-            execute: async (query, params) => {
-                const result = await db.execute(query, params);
-                const queryType = query.trim().split(' ')[0].toUpperCase();
-                
-                if (queryType === 'SELECT') {
-                    return [result.rows || [], result.fields || []];
-                } else {
-                    return {
-                        insertId: result.lastInsertId || result.insertId || null,
-                        affectedRows: result.affectedRows || 0,
-                        rows: result.rows || [],
-                        fields: result.fields || []
-                    };
-                }
-            },
-            release: () => {}
-        };
-    }
-};
-// Test connection without blocking
+// Get promisePool from database.js
+const promisePool = db.promisePool;
+
+// Test connection
 (async () => {
     try {
-        const result = await db.execute('SELECT 1 + 1 AS solution');
-        console.log('✅ Database connection successful via TiDB Serverless!');
-        // ✅ SAFE CHECK: Ensure result.rows exists and has at least one element
-        if (result && result.rows && result.rows.length > 0) {
-            console.log('📊 Test query result:', result.rows[0].solution);
-        } else {
-            console.log('⚠️ Test query returned no rows');
-        }
+        const [result] = await promisePool.query('SELECT 1 + 1 AS solution');
+        console.log('✅ MySQL Database connected successfully!');
+        console.log('📊 Test query result:', result[0].solution);
+        
+        // Initialize tool tables if needed
+        setTimeout(() => {
+            initializeToolTables();
+        }, 1000);
     } catch (err) {
         console.error('❌ Database connection failed:', err.message);
-        // Don't exit - just log the error
     }
 })();
-
-// Export immediately para magamit ng routes
-module.exports.promisePool = promisePool;
 
 // ============================================
 // AUTHENTICATION MIDDLEWARE - ADDED HERE
@@ -237,42 +128,34 @@ module.exports.promisePool = promisePool;
 // TOOL MANAGER DATABASE SETUP
 // ============================================
 
-// Create calculator history table if it doesn't exist
 async function initializeToolTables() {
     try {
         console.log('🔄 Initializing Tool Manager tables...');
         
-        // Check if promisePool is ready
-        if (!promisePool || !promisePool.execute) {
-            console.log('⏳ Waiting for database connection...');
-            // Wait a bit
-            await new Promise(resolve => setTimeout(resolve, 2000));
+        // Check if users table exists first
+        const [tables] = await promisePool.query("SHOW TABLES LIKE 'users'");
+        
+        if (tables.length > 0) {
+            await promisePool.query(`
+                CREATE TABLE IF NOT EXISTS calculator_history (
+                    history_id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    expression TEXT NOT NULL,
+                    result VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                    INDEX idx_user_history (user_id, created_at)
+                )
+            `);
+            console.log('✅ calculator_history table created/verified');
+        } else {
+            console.log('⚠️ Users table not found, skipping calculator_history creation');
         }
-        
-        await promisePool.execute(`
-            CREATE TABLE IF NOT EXISTS calculator_history (
-                history_id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
-                expression TEXT NOT NULL,
-                result VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-                INDEX idx_user_history (user_id, created_at)
-            )
-        `);
-        
-        console.log('✅ calculator_history table created/verified');
         
     } catch (error) {
         console.error('❌ Error initializing tool tables:', error.message);
-        // Don't exit - just log the error
     }
 }
-
-// Call this with a delay para hindi ma-block ang startup
-//setTimeout(() => {
-   // initializeToolTables();
-//}, 3000);
 // ============================================
 // AUTHENTICATION MIDDLEWARE
 // ============================================
