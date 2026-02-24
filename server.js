@@ -174,7 +174,7 @@ async function initializeToolTables() {
 }
 
 // Call this after database connection
-initializeToolTables();
+//initializeToolTables();
 // ============================================
 // AUTHENTICATION MIDDLEWARE
 // ============================================
