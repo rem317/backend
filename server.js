@@ -121,25 +121,55 @@ const upload = multer({
 // ============================================
 const db = require('./config/database');
 
-// Wait for database connection to be established
-let promisePool;
+// Create a wrapper para hindi ma-undefined ang promisePool
+const promisePool = {
+    execute: async (query, params) => {
+        try {
+            const result = await db.execute(query, params);
+            return [result.rows, result.fields];
+        } catch (error) {
+            console.error('❌ Query execution error:', error);
+            throw error;
+        }
+    },
+    query: async (query, params) => {
+        try {
+            const result = await db.execute(query, params);
+            return [result.rows, result.fields];
+        } catch (error) {
+            console.error('❌ Query execution error:', error);
+            throw error;
+        }
+    },
+    getConnection: async () => {
+        // Return a mock connection
+        return {
+            query: async (query, params) => {
+                const result = await db.execute(query, params);
+                return [result.rows, result.fields];
+            },
+            execute: async (query, params) => {
+                const result = await db.execute(query, params);
+                return [result.rows, result.fields];
+            },
+            release: () => {}
+        };
+    }
+};
 
+// Test connection without blocking
 (async () => {
     try {
-        // Test connection by running a simple query
         const result = await db.execute('SELECT 1 + 1 AS solution');
         console.log('✅ Database connection successful via TiDB Serverless!');
         console.log('📊 Test query result:', result.rows[0].solution);
-        
-        // Store the connection for use in routes
-        promisePool = db;
     } catch (err) {
         console.error('❌ Database connection failed:', err.message);
-        process.exit(1);
+        // Don't exit - just log the error
     }
 })();
 
-// Export for use in routes
+// Export immediately para magamit ng routes
 module.exports.promisePool = promisePool;
 
 // ============================================
@@ -153,6 +183,13 @@ module.exports.promisePool = promisePool;
 async function initializeToolTables() {
     try {
         console.log('🔄 Initializing Tool Manager tables...');
+        
+        // Check if promisePool is ready
+        if (!promisePool || !promisePool.execute) {
+            console.log('⏳ Waiting for database connection...');
+            // Wait a bit
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
         
         await promisePool.execute(`
             CREATE TABLE IF NOT EXISTS calculator_history (
@@ -170,11 +207,14 @@ async function initializeToolTables() {
         
     } catch (error) {
         console.error('❌ Error initializing tool tables:', error.message);
+        // Don't exit - just log the error
     }
 }
 
-// Call this after database connection
-//initializeToolTables();
+// Call this with a delay para hindi ma-block ang startup
+setTimeout(() => {
+    initializeToolTables();
+}, 3000);
 // ============================================
 // AUTHENTICATION MIDDLEWARE
 // ============================================
