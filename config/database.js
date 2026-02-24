@@ -1,33 +1,29 @@
-const mysql = require('mysql2/promise');
+const { connect } = require('@tidbcloud/serverless');
 require('dotenv').config();
 
-const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT || 3306,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0
+console.log('🔄 Initializing TiDB Serverless connection...');
+
+if (!process.env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL is not set!');
+    process.exit(1);
+}
+
+const connection = connect({
+    url: process.env.DATABASE_URL
 });
 
-// Test connection
-pool.getConnection()
-    .then(connection => {
-        console.log('✅ Connected to MySQL database');
-        console.log(`📊 Database: ${process.env.DB_NAME}`);
-        connection.release();
-    })
-    .catch(err => {
-        console.error('❌ Database connection failed:', err.message);
-        console.log('💡 Please check:');
-        console.log('   1. MySQL is running');
-        console.log('   2. Database exists (run schema.sql)');
-        console.log('   3. .env file has correct credentials');
-        process.exit(1);
-    });
+// Execute function para magamit sa server.js
+async function execute(query, params = []) {
+    try {
+        const result = await connection.execute(query, params);
+        return result;
+    } catch (err) {
+        console.error('❌ Query error:', err.message);
+        throw err;
+    }
+}
 
-module.exports = pool;
+module.exports = {
+    execute,
+    connection
+};
