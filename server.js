@@ -126,39 +126,90 @@ const promisePool = {
         try {
             console.log(`🔍 Executing query: ${query.substring(0, 100)}...`);
             const result = await db.execute(query, params);
-            // ✅ LAGING MAGBALIK NG ARRAY, KAHIT WALANG LAMAN
-            return [result.rows || [], result.fields || []];
+            
+            // ✅ CHECK KUNG ANONG TYPE NG QUERY
+            const queryType = query.trim().split(' ')[0].toUpperCase();
+            
+            if (queryType === 'SELECT') {
+                // Para sa SELECT queries, return rows at fields
+                return [result.rows || [], result.fields || []];
+            } else {
+                // Para sa INSERT, UPDATE, DELETE, return ang buong result object
+                // para magamit ang insertId, affectedRows, etc.
+                return {
+                    insertId: result.lastInsertId || result.insertId || null,
+                    affectedRows: result.affectedRows || 0,
+                    rows: result.rows || [],
+                    fields: result.fields || []
+                };
+            }
         } catch (error) {
             console.error('❌ Query execution error:', error);
             throw error;
         }
     },
+    
     query: async (query, params) => {
+        // Same logic sa execute
         try {
             console.log(`🔍 Executing query: ${query.substring(0, 100)}...`);
             const result = await db.execute(query, params);
-            return [result.rows || [], result.fields || []];
+            
+            const queryType = query.trim().split(' ')[0].toUpperCase();
+            
+            if (queryType === 'SELECT') {
+                return [result.rows || [], result.fields || []];
+            } else {
+                return {
+                    insertId: result.lastInsertId || result.insertId || null,
+                    affectedRows: result.affectedRows || 0,
+                    rows: result.rows || [],
+                    fields: result.fields || []
+                };
+            }
         } catch (error) {
             console.error('❌ Query execution error:', error);
             throw error;
         }
     },
+    
     getConnection: async () => {
         // Return a mock connection
         return {
             query: async (query, params) => {
                 const result = await db.execute(query, params);
-                return [result.rows || [], result.fields || []];
+                const queryType = query.trim().split(' ')[0].toUpperCase();
+                
+                if (queryType === 'SELECT') {
+                    return [result.rows || [], result.fields || []];
+                } else {
+                    return {
+                        insertId: result.lastInsertId || result.insertId || null,
+                        affectedRows: result.affectedRows || 0,
+                        rows: result.rows || [],
+                        fields: result.fields || []
+                    };
+                }
             },
             execute: async (query, params) => {
                 const result = await db.execute(query, params);
-                return [result.rows || [], result.fields || []];
+                const queryType = query.trim().split(' ')[0].toUpperCase();
+                
+                if (queryType === 'SELECT') {
+                    return [result.rows || [], result.fields || []];
+                } else {
+                    return {
+                        insertId: result.lastInsertId || result.insertId || null,
+                        affectedRows: result.affectedRows || 0,
+                        rows: result.rows || [],
+                        fields: result.fields || []
+                    };
+                }
             },
             release: () => {}
         };
     }
 };
-
 // Test connection without blocking
 (async () => {
     try {
