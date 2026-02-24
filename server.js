@@ -121,11 +121,13 @@ const upload = multer({
 const db = require('./config/database');
 
 // Create a wrapper para hindi ma-undefined ang promisePool
+// Create a wrapper para hindi ma-undefined ang promisePool
 const promisePool = {
     execute: async (query, params) => {
         try {
             const result = await db.execute(query, params);
-            return [result.rows, result.fields];
+            // ✅ LAGING MAGBALIK NG ARRAY, KAHIT WALANG LAMAN
+            return [result.rows || [], result.fields || []];
         } catch (error) {
             console.error('❌ Query execution error:', error);
             throw error;
@@ -134,22 +136,21 @@ const promisePool = {
     query: async (query, params) => {
         try {
             const result = await db.execute(query, params);
-            return [result.rows, result.fields];
+            return [result.rows || [], result.fields || []];
         } catch (error) {
             console.error('❌ Query execution error:', error);
             throw error;
         }
     },
     getConnection: async () => {
-        // Return a mock connection
         return {
             query: async (query, params) => {
                 const result = await db.execute(query, params);
-                return [result.rows, result.fields];
+                return [result.rows || [], result.fields || []];
             },
             execute: async (query, params) => {
                 const result = await db.execute(query, params);
-                return [result.rows, result.fields];
+                return [result.rows || [], result.fields || []];
             },
             release: () => {}
         };
