@@ -212,9 +212,9 @@ async function initializeToolTables() {
 }
 
 // Call this with a delay para hindi ma-block ang startup
-setTimeout(() => {
-    initializeToolTables();
-}, 3000);
+//setTimeout(() => {
+   // initializeToolTables();
+//}, 3000);
 // ============================================
 // AUTHENTICATION MIDDLEWARE
 // ============================================
