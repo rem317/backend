@@ -92,29 +92,55 @@ const upload = multer({
 // ============================================
 // DATABASE CONNECTION - FIXED
 // ============================================
-const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'thesis',
-    database: process.env.DB_NAME || 'polylearn_db',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0
-});
+//const pool = mysql.createPool({
+   // host: process.env.DB_HOST || 'localhost',
+   // user: process.env.DB_USER || 'root',
+    //password: process.env.DB_PASSWORD || 'thesis',
+    //database: process.env.DB_NAME || 'polylearn_db',
+   // waitForConnections: true,
+   // connectionLimit: 10,
+    //queueLimit: 0,
+    //enableKeepAlive: true,
+    //keepAliveInitialDelay: 0
+//});
 
-const promisePool = pool.promise();
+//const promisePool = pool.promise();
 
 // Test connection
-pool.getConnection((err, connection) => {
-    if (err) {
+//pool.getConnection((err, connection) => {
+   // if (err) {
+      //  console.error('❌ Database connection failed:', err.message);
+    //} else {
+       // console.log('✅ Connected to MySQL database');
+        //connection.release();
+   // }
+//});
+
+// ============================================
+// DATABASE CONNECTION - USING TiDB SERVERLESS
+// ============================================
+const db = require('./config/database');
+
+// Wait for database connection to be established
+let promisePool;
+
+(async () => {
+    try {
+        // Test connection by running a simple query
+        const result = await db.execute('SELECT 1 + 1 AS solution');
+        console.log('✅ Database connection successful via TiDB Serverless!');
+        console.log('📊 Test query result:', result.rows[0].solution);
+        
+        // Store the connection for use in routes
+        promisePool = db;
+    } catch (err) {
         console.error('❌ Database connection failed:', err.message);
-    } else {
-        console.log('✅ Connected to MySQL database');
-        connection.release();
+        process.exit(1);
     }
-});
+})();
+
+// Export for use in routes
+module.exports.promisePool = promisePool;
 
 // ============================================
 // AUTHENTICATION MIDDLEWARE - ADDED HERE
