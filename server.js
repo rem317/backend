@@ -121,7 +121,6 @@ const upload = multer({
 const db = require('./config/database');
 
 // Create a wrapper para hindi ma-undefined ang promisePool
-// Create a wrapper para hindi ma-undefined ang promisePool
 const promisePool = {
     execute: async (query, params) => {
         try {
@@ -143,6 +142,7 @@ const promisePool = {
         }
     },
     getConnection: async () => {
+        // Return a mock connection
         return {
             query: async (query, params) => {
                 const result = await db.execute(query, params);
@@ -162,7 +162,12 @@ const promisePool = {
     try {
         const result = await db.execute('SELECT 1 + 1 AS solution');
         console.log('✅ Database connection successful via TiDB Serverless!');
-        console.log('📊 Test query result:', result.rows[0].solution);
+        // ✅ SAFE CHECK: Ensure result.rows exists and has at least one element
+        if (result && result.rows && result.rows.length > 0) {
+            console.log('📊 Test query result:', result.rows[0].solution);
+        } else {
+            console.log('⚠️ Test query returned no rows');
+        }
     } catch (err) {
         console.error('❌ Database connection failed:', err.message);
         // Don't exit - just log the error
