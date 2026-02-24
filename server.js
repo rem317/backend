@@ -15255,26 +15255,3 @@ app.get('/api/debug/database', async (req, res) => {
     }
 });
 
-// I-add ito sa server.js (temporary)
-app.get('/api/practice/test/:topicId', verifyToken, async (req, res) => {
-  try {
-    const { topicId } = req.params;
-    
-    // Diretsong query lang muna
-    const [exercises] = await promisePool.query(
-      'SELECT * FROM practice_exercises WHERE topic_id = ?',
-      [topicId]
-    );
-    
-    console.log(`📊 Test query found ${exercises.length} exercises`);
-    
-    res.json({
-      success: true,
-      exercises: exercises,
-      count: exercises.length
-    });
-    
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
